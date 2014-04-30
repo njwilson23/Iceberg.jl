@@ -32,13 +32,13 @@ end
 
 abstract ModelState
 
-type ModelState1D   <: ModelState
+type ModelState1d   <: ModelState
     temp::Array
     phi::Array
     params::ModelParams
 end
 
-type ModelState2D   <: ModelState
+type ModelState2d   <: ModelState
     temp::Array
     phi::Array
     params::ModelParams
@@ -62,18 +62,11 @@ function initialize1d(n=32)
     x = linspace(0.5*modelparams.dx[1], modelparams.dx[1]*n-0.5*modelparams.dx[1], n)
     phi = x .- modelparams.dx[1]*n2
 
-    return ModelState1D(T, phi, modelparams), physics
+    return ModelState1d(T, phi, modelparams), physics
 
 end
 
-# solve the temperature evolution equation
-function tsolve!(state::ModelState1D, phys::PhysicalParams)
-
-    # this is a prototype functions that only works for one dimension
-    #
-    # simple explicit finite differences are used, so the timestep choice
-    # requires care
-
+function assemble_mat(state::ModelState1d)
     n = state.params.nx[1]
     L = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
     # Apply Dirichlet boundary conditions
@@ -83,6 +76,24 @@ function tsolve!(state::ModelState1D, phys::PhysicalParams)
     L[end,end-1] = 0.0
     L[1,1] = 0.0
     L[end,end] = 0.0
+    return L
+end
+
+function assemble_mat(state::ModelState2d)
+    m, n = state.params.nx
+    L1 = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
+    L2 = spdiagm((ones(m-1), -2ones(m), ones(m-1)), (-1, 0, 1))
+    L = kron(L1, eye(m)) + kron(eye(n), L2)
+end
+
+# solve the temperature evolution equation
+function tsolve!(state::ModelState, phys::PhysicalParams)
+
+    # this is a prototype functions that only works for one dimension
+    #
+    # simple explicit finite differences are used, so the timestep choice
+    # requires care
+    L = assemble_mat(state)
 
     mskSolid = state.phi .> 0.0
 
@@ -100,10 +111,10 @@ end
 
 # computes the normal velocity based on temperature gradient
 # 1d only right now
-function front_velocity(state::ModelState1D, phys::PhysicalParams)
+function front_velocity(state::ModelState1d, phys::PhysicalParams)
 
     # need to look right at the front, and compute the gradient on either side.
-    # This is trivial for 1D, but it would be a good idea to think about how I
+    # This is trivial for 1d, but it would be a good idea to think about how I
     # can generalize this to ND.
     zidx = front_position(state, phys)
     if (zidx < 3) | (zidx > state.params.nx[1] - 2)
@@ -125,7 +136,7 @@ function front_velocity(state::ModelState1D, phys::PhysicalParams)
 end
 
 # return the position of the freezing front
-function front_position(state::ModelState1D, phys::PhysicalParams)
+function front_position(state::ModelState1d, phys::PhysicalParams)
 
     Tabs = abs(state.temp .- phys.tmelt)
     zidx = find(Tabs .== minimum(Tabs))[1]
