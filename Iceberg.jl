@@ -98,11 +98,6 @@ function tsolve!(state::ModelState1D, phys::PhysicalParams)
     return state.temp
 end
 
-# Pin the temperature of the fluid phase
-function mixed_fluid_phase!(state::ModelState, phys::PhysicalParams)
-    state.temp[state.phi .< 0] = 1.0
-end
-
 # computes the normal velocity based on temperature gradient
 # 1d only right now
 function front_velocity(state::ModelState1D, phys::PhysicalParams)
@@ -110,9 +105,7 @@ function front_velocity(state::ModelState1D, phys::PhysicalParams)
     # need to look right at the front, and compute the gradient on either side.
     # This is trivial for 1D, but it would be a good idea to think about how I
     # can generalize this to ND.
-    Tabs = abs(state.temp .- phys.tmelt)
-    zidx = find(Tabs .== minimum(Tabs))[1]
-
+    zidx = front_position(state, phys)
     if (zidx < 3) | (zidx > state.params.nx[1] - 2)
         warn("Zero level set includes the domain boundary")
         return zeros(Float64, state.params.nx)
@@ -128,8 +121,16 @@ function front_velocity(state::ModelState1D, phys::PhysicalParams)
     gradLiquid = 1.0/state.params.dx[1] * dot(state.temp[idxsLiquid], [-1, 1])
 
     vel = 1.0/phys.Lf * (phys.kaps * gradSolid - phys.kapl * gradLiquid)
-    #@printf("%2.2f\t%2.2f\tv:%2.3f\n", gradSolid, gradLiquid, vel)
     return vel * ones(Float64, state.params.nx)
+end
+
+# return the position of the freezing front
+function front_position(state::ModelState1D, phys::PhysicalParams)
+
+    Tabs = abs(state.temp .- phys.tmelt)
+    zidx = find(Tabs .== minimum(Tabs))[1]
+    return zidx
+
 end
 
 # reinitialize the level set function
