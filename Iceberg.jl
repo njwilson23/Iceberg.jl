@@ -1,50 +1,6 @@
 module Iceberg
-import Base.show
-#using Temperature
-#using Levelset
-
-# maybe this should be a dictionary?
-#PhysicalParams = {:kapl => 1.0,
-#                  :kaps => 1.0,
-#                  :cpl => 1.0,
-#                  :cps => 1.0,
-#                  :rhol => 1.0,
-#                  :rhos => 1.0,
-#                  :tmelt => 0.0}
-
-type PhysicalParams
-    Lf::Float64
-    kapl::Float64
-    kaps::Float64
-    cpl::Float64
-    cps::Float64
-    rhol::Float64
-    rhos::Float64
-    tmelt::Float64
-end
-
-type ModelParams
-    dt::Float64
-    dx::Tuple
-    nt::Integer
-    nx::Tuple
-end
-
-abstract ModelState
-
-type ModelState1d   <: ModelState
-    temp::Array
-    phi::Array
-    params::ModelParams
-end
-
-type ModelState2d   <: ModelState
-    temp::Array
-    phi::Array
-    params::ModelParams
-end
-
-print(io::IO, A::ModelState) = @sprintf("Problem of size %s", size(A.phi))
+using ib_types
+import heat: tsolve!
 
 # temporary function to initialize the problem domain
 function initialize1d(n=32)
@@ -64,49 +20,6 @@ function initialize1d(n=32)
 
     return ModelState1d(T, phi, modelparams), physics
 
-end
-
-function assemble_mat(state::ModelState1d)
-    n = state.params.nx[1]
-    L = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
-    # Apply Dirichlet boundary conditions
-    # Warning: elementwise modification of sparse matrices is slow. This could
-    # be done during matrix assembly, at loss of clarity
-    L[1,2] = 0.0
-    L[end,end-1] = 0.0
-    L[1,1] = 0.0
-    L[end,end] = 0.0
-    return L
-end
-
-function assemble_mat(state::ModelState2d)
-    m, n = state.params.nx
-    L1 = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
-    L2 = spdiagm((ones(m-1), -2ones(m), ones(m-1)), (-1, 0, 1))
-    L = kron(L1, eye(m)) + kron(eye(n), L2)
-end
-
-# solve the temperature evolution equation
-function tsolve!(state::ModelState, phys::PhysicalParams)
-
-    # this is a prototype functions that only works for one dimension
-    #
-    # simple explicit finite differences are used, so the timestep choice
-    # requires care
-    L = assemble_mat(state)
-
-    mskSolid = state.phi .> 0.0
-
-    alpha = Array(Float64, state.params.nx)
-    alpha[mskSolid] = phys.kaps / (phys.cps * phys.rhos)
-    alpha[!mskSolid] = phys.kapl / (phys.cpl * phys.rhol)
-
-    geo = state.params.dt / state.params.dx[1]^2
-    state.temp[:] += geo * alpha .* (L * state.temp[:])
-    state.temp[~mskSolid] = max(state.temp[~mskSolid], phys.tmelt)
-    state.temp[mskSolid] = min(state.temp[mskSolid], phys.tmelt)
-
-    return state.temp
 end
 
 # computes the normal velocity based on temperature gradient
