@@ -59,7 +59,7 @@ function initialize1d(n=32)
 end
 
 # solve the temperature evolution equation
-function tsolve(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
+function tsolve!(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
 
     # this is a prototype functions that only works for one dimension with a
     # t=1.0 Dirichlet BC on the left
@@ -69,17 +69,27 @@ function tsolve(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
 
     n = mpar.nx[1]
     L = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
+    # Apply Dirichlet boundary conditions
+    # Warning: elementwise modification of sparse matrices is slow. This could
+    # be done during matrix assembly, at loss of clarity
     L[1,2] = 0.0
     L[end,end-1] = 0.0
     L[1,1] = 0.0
     L[end,end] = 0.0
-    dT = mpar.dt / mpar.dx[1]^2 * ppar.kaps / ppar.cps * L * state.temp[:]
+
+    # Compute a field alpha
+    alphas = ppar.kaps / (ppar.cps * ppar.rhos)
+    alphal = ppar.kapl / (ppar.cpl * ppar.rhol)
+    alpha = [state.phi[i] < 0.0 ? alphal : alphas for i=1:mpar.nx[1]]
+
+    dT = mpar.dt / mpar.dx[1]^2 * alpha .* (L * state.temp[:])
     state.temp += reshape(dT, mpar.nx)
-    state.temp[1] = 1.0
-    state.temp[state.phi .< 0] = 1.0
-
     return state.temp
+end
 
+# Pin the temperature of the fluid phase
+function mixed_fluid_phase!(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
+    state.temp[state.phi .< 0] = 1.0
 end
 
 # computes the normal velocity based on temperature gradient
