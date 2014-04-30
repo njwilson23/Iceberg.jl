@@ -30,20 +30,28 @@ type ModelParams
     nx::Tuple
 end
 
-type ModelState
+abstract ModelState
+
+type ModelState1D   <: ModelState
     temp::Array
     phi::Array
-    #Tmat::AbstractArray
+    params::ModelParams
 end
 
-show(A::ModelState) = @sprintf("Problem of size %s", size(A.phi))
+type ModelState2D   <: ModelState
+    temp::Array
+    phi::Array
+    params::ModelParams
+end
+
+print(io::IO, A::ModelState) = @sprintf("Problem of size %s", size(A.phi))
 
 # temporary function to initialize the problem domain
 function initialize1d(n=32)
 
     n2 = int(floor(n/2))
-    mpar = ModelParams(1e-5, (1.0/n,), 100, (n,))
-    ppar = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
+    modelparams = ModelParams(1e-5, (1.0/n,), 100, (n,))
+    physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
 
     # set up a simple temperature field
     T = Array(Float64, n)
@@ -51,15 +59,15 @@ function initialize1d(n=32)
     T[n2+1:end] = -1.0
 
     # set up a global phi
-    x = linspace(0.5*mpar.dx[1], mpar.dx[1]*n-0.5*mpar.dx[1], n)
-    phi = x .- mpar.dx[1]*n2
+    x = linspace(0.5*modelparams.dx[1], modelparams.dx[1]*n-0.5*modelparams.dx[1], n)
+    phi = x .- modelparams.dx[1]*n2
 
-    return ModelState(T, phi), mpar, ppar
+    return ModelState1D(T, phi, modelparams), physics
 
 end
 
 # solve the temperature evolution equation
-function tsolve!(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
+function tsolve!(state::ModelState, ppar::PhysicalParams)
 
     # this is a prototype functions that only works for one dimension with a
     # t=1.0 Dirichlet BC on the left
@@ -67,7 +75,7 @@ function tsolve!(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
     # simple explicit finite differences are used, so the timestep choice
     # requires care
 
-    n = mpar.nx[1]
+    n = state.params.nx[1]
     L = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
     # Apply Dirichlet boundary conditions
     # Warning: elementwise modification of sparse matrices is slow. This could
@@ -80,21 +88,21 @@ function tsolve!(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
     # Compute a field alpha
     alphas = ppar.kaps / (ppar.cps * ppar.rhos)
     alphal = ppar.kapl / (ppar.cpl * ppar.rhol)
-    alpha = [state.phi[i] < 0.0 ? alphal : alphas for i=1:mpar.nx[1]]
+    alpha = [state.phi[i] < 0.0 ? alphal : alphas for i=1:state.params.nx[1]]
 
-    dT = mpar.dt / mpar.dx[1]^2 * alpha .* (L * state.temp[:])
-    state.temp += reshape(dT, mpar.nx)
+    dT = state.params.dt / state.params.dx[1]^2 * alpha .* (L * state.temp[:])
+    state.temp += reshape(dT, state.params.nx)
     return state.temp
 end
 
 # Pin the temperature of the fluid phase
-function mixed_fluid_phase!(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
+function mixed_fluid_phase!(state::ModelState, ppar::PhysicalParams)
     state.temp[state.phi .< 0] = 1.0
 end
 
 # computes the normal velocity based on temperature gradient
 # 1d only right now
-function front_velocity(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
+function front_velocity(state::ModelState, ppar::PhysicalParams)
 
     # need to look right at the front, and compute the gradient on either side.
     # This is trivial for 1D, but it would be a good idea to think about how I
@@ -102,9 +110,9 @@ function front_velocity(state::ModelState, mpar::ModelParams, ppar::PhysicalPara
     Tabs = abs(state.temp .- ppar.tmelt)
     zidx = find(Tabs .== minimum(Tabs))[1]
 
-    if (zidx < 3) | (zidx > mpar.nx[1] - 2)
+    if (zidx < 3) | (zidx > state.params.nx[1] - 2)
         warn("Zero level set includes the domain boundary")
-        return zeros(Float64, mpar.nx)
+        return zeros(Float64, state.params.nx)
     elseif zidx - 1 > ppar.tmelt
         idxsSolid = [zidx - 2, zidx - 1]
         idxsLiquid = [zidx + 1, zidx + 2]
@@ -113,23 +121,23 @@ function front_velocity(state::ModelState, mpar::ModelParams, ppar::PhysicalPara
         idxsLiquid = [zidx - 2, zidx - 1]
     end
 
-    gradSolid = 1.0/mpar.dx[1] * dot(state.temp[idxsSolid], [-1, 1])
-    gradLiquid = 1.0/mpar.dx[1] * dot(state.temp[idxsLiquid], [-1, 1])
+    gradSolid = 1.0/state.params.dx[1] * dot(state.temp[idxsSolid], [-1, 1])
+    gradLiquid = 1.0/state.params.dx[1] * dot(state.temp[idxsLiquid], [-1, 1])
 
     vel = 1.0/ppar.Lf * (ppar.kaps * gradSolid - ppar.kapl * gradLiquid)
-    return vel * ones(Float64, mpar.nx)
+    return vel * ones(Float64, state.params.nx)
 end
 
 # reinitialize the level set function
 # 1d only right now
-#function lsupdate!(state::ModelState, mpar::ModelParams, ppar::PhysicalParams)
+#function lsupdate!(state::ModelState, ppar::PhysicalParams)
 #
 #    Tabs = abs(state.temp .- ppar.tmelt)
 #    zidx = find(Tabs .== minimum(Tabs))[1]
 #    
-#    for idx=1:mpar.nx[1]
-#        x = idx * mpar.dx[1]
-#        state.phi[idx] = -sign(state.temp[idx]) * mpar.dx[1] * abs(idx - zidx)
+#    for idx=1:state.params.nx[1]
+#        x = idx * state.params.dx[1]
+#        state.phi[idx] = -sign(state.temp[idx]) * state.params.dx[1] * abs(idx - zidx)
 #    end
 #
 #end
