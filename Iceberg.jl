@@ -90,8 +90,9 @@ function tsolve!(state::ModelState1D, phys::PhysicalParams)
     alphal = phys.kapl / (phys.cpl * phys.rhol)
     alpha = [state.phi[i] < 0.0 ? alphal : alphas for i=1:state.params.nx[1]]
 
-    dT = Array(Float64, stat.params.nx)
+    dT = Array(Float64, state.params.nx)
     dT[:] = state.params.dt / state.params.dx[1]^2 * alpha .* (L * state.temp[:])
+    state.temp += dT
     return state.temp
 end
 
