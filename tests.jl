@@ -11,7 +11,12 @@ function test_initialize1d()
 
 end
 
-test_initialize1d()
+# ensure that the 1D solution is tolarably close to an analytical solution
+function test_tsolve1d()
 
+
+end
+
+test_initialize1d()
 
 end #module
