@@ -19,13 +19,19 @@ function assemble_mat(state::ModelState2d)
     m, n = state.params.nx
     L1 = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
     L2 = spdiagm((ones(m-1), -2ones(m), ones(m-1)), (-1, 0, 1))
+    for L_ in (L1, L2)
+        L_[1,2] = 0.0
+        L_[end,end-1] = 0.0
+        L_[1,1] = 0.0
+        L_[end,end] = 0.0
+    end
     L = kron(L1, eye(m)) + kron(eye(n), L2)
+    return L
 end
 
 # solve the temperature evolution equation
 function tsolve!(state::ModelState, phys::PhysicalParams)
-
-    # this is a prototype functions that only works for one dimension
+    # this is a prototype function that only works for one dimension
     #
     # simple explicit finite differences are used, so the timestep choice
     # requires care
