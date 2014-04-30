@@ -16,10 +16,9 @@ function initialize1d(n=32)
 
     # set up a global phi
     x = linspace(0.5*modelparams.dx[1], modelparams.dx[1]*n-0.5*modelparams.dx[1], n)
-    phi = x .- modelparams.dx[1]*n2
+    ϕ = x .- modelparams.dx[1]*n2
 
-    return ModelState1d(T, phi, modelparams), physics
-
+    return ModelState1d(T, ϕ, modelparams), physics
 end
 
 # computes the normal velocity based on temperature gradient
@@ -41,10 +40,10 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
         idxsLiquid = [zidx - 2, zidx - 1]
     end
 
-    gradSolid = 1.0/state.params.dx[1] * dot(state.temp[idxsSolid], [-1, 1])
-    gradLiquid = 1.0/state.params.dx[1] * dot(state.temp[idxsLiquid], [-1, 1])
+    ∇sol = 1.0/state.params.dx[1] * dot(state.temp[idxssol], [-1, 1])
+    ∇liq = 1.0/state.params.dx[1] * dot(state.temp[idxsLiquid], [-1, 1])
 
-    vel = 1.0/phys.Lf * (phys.kaps * gradSolid - phys.kapl * gradLiquid)
+    vel = 1.0/phys.Lf * (phys.kaps * ∇sol - phys.kapl * ∇liq)
     return vel * ones(Float64, state.params.nx)
 end
 
@@ -54,6 +53,16 @@ function front_position(state::ModelState1d, phys::PhysicalParams)
     Tabs = abs(state.temp .- phys.tmelt)
     zidx = find(Tabs .== minimum(Tabs))[1]
     return zidx
+
+end
+
+# calculate ∇T
+function gradT(state::ModelState)
+
+    T = state.temp
+    dx = diff(T, 1)
+    dy = diff(T, 2)
+    # not finished!
 
 end
 
@@ -70,11 +79,5 @@ end
 #    end
 #
 #end
-
-# master function that runs the model
-function run()
-
-
-end
 
 end #module
