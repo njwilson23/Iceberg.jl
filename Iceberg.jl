@@ -93,6 +93,10 @@ function tsolve!(state::ModelState1D, phys::PhysicalParams)
     dT = Array(Float64, state.params.nx)
     dT[:] = state.params.dt / state.params.dx[1]^2 * alpha .* (L * state.temp[:])
     state.temp += dT
+
+    state.temp[state.phi .< 0.0] = max(state.temp[state.phi .< 0.0], phys.tmelt)
+    state.temp[state.phi .> 0.0] = min(state.temp[state.phi .> 0.0], phys.tmelt)
+
     return state.temp
 end
 
@@ -103,7 +107,7 @@ end
 
 # computes the normal velocity based on temperature gradient
 # 1d only right now
-function front_velocity(state::ModelState, phys::PhysicalParams)
+function front_velocity(state::ModelState1D, phys::PhysicalParams)
 
     # need to look right at the front, and compute the gradient on either side.
     # This is trivial for 1D, but it would be a good idea to think about how I
@@ -126,6 +130,7 @@ function front_velocity(state::ModelState, phys::PhysicalParams)
     gradLiquid = 1.0/state.params.dx[1] * dot(state.temp[idxsLiquid], [-1, 1])
 
     vel = 1.0/phys.Lf * (phys.kaps * gradSolid - phys.kapl * gradLiquid)
+    #@printf("%2.2f\t%2.2f\tv:%2.3f\n", gradSolid, gradLiquid, vel)
     return vel * ones(Float64, state.params.nx)
 end
 
