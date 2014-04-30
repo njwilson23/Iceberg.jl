@@ -69,8 +69,7 @@ end
 # solve the temperature evolution equation
 function tsolve!(state::ModelState1D, phys::PhysicalParams)
 
-    # this is a prototype functions that only works for one dimension with a
-    # t=1.0 Dirichlet BC on the left
+    # this is a prototype functions that only works for one dimension
     #
     # simple explicit finite differences are used, so the timestep choice
     # requires care
@@ -85,17 +84,16 @@ function tsolve!(state::ModelState1D, phys::PhysicalParams)
     L[1,1] = 0.0
     L[end,end] = 0.0
 
-    # Compute a field alpha
-    alphas = phys.kaps / (phys.cps * phys.rhos)
-    alphal = phys.kapl / (phys.cpl * phys.rhol)
-    alpha = [state.phi[i] < 0.0 ? alphal : alphas for i=1:state.params.nx[1]]
+    mskSolid = state.phi .> 0.0
 
-    dT = Array(Float64, state.params.nx)
-    dT[:] = state.params.dt / state.params.dx[1]^2 * alpha .* (L * state.temp[:])
-    state.temp += dT
+    alpha = Array(Float64, state.params.nx)
+    alpha[mskSolid] = phys.kaps / (phys.cps * phys.rhos)
+    alpha[!mskSolid] = phys.kapl / (phys.cpl * phys.rhol)
 
-    state.temp[state.phi .< 0.0] = max(state.temp[state.phi .< 0.0], phys.tmelt)
-    state.temp[state.phi .> 0.0] = min(state.temp[state.phi .> 0.0], phys.tmelt)
+    geo = state.params.dt / state.params.dx[1]^2
+    state.temp[:] += geo * alpha .* (L * state.temp[:])
+    state.temp[~mskSolid] = max(state.temp[~mskSolid], phys.tmelt)
+    state.temp[mskSolid] = min(state.temp[mskSolid], phys.tmelt)
 
     return state.temp
 end
