@@ -35,5 +35,15 @@ def eval_stefan(λ, **kw):
 
     return res**2
 
+# test case: Glauber's salt values
+# reference answer: λ = 0.521, with an objective value of 1.07e-9
+fsalt = lambda λ: eval_stefan(λ, Tm=32.0, cpl=3.31, cps=1.76, kapl=5.9e-2, 
+                                 kaps=2.16e-3, rhos=1460.0, rhol=1460.0,
+                                 Lf=251.21, Ts=25.0, Tl=90.0)
+
+fwater = lambda λ: eval_stefan(λ, Tm=0.0, cpl=4.1868, cps=0.5, kapl=5.664e-3,
+                                  kaps=2.16e-3, rhos=1.0, rhol=1.0, Lf=333.4)
+
+#print(minimize_scalar(fwater))
 print(minimize_scalar(eval_stefan))
 
