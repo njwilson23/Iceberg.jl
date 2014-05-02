@@ -123,7 +123,7 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
     # need to look right at the front, and compute the gradient on either side.
     # This is trivial for 1d, but it would be a good idea to think about how I
     # can generalize this to ND.
-    ζ = front_indices(state, phys)
+    ζ = front_indices(state)
     velocities = Array(Float64, length(ζ))
     dx = state.params.dx[1]
 
@@ -145,17 +145,25 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
         velocities[i] = 1.0/phys.Lf * (phys.kaps * ∇sol - phys.kapl * ∇liq)
 
     end
+    #println(ζ)
+    #println(velocities)
 
     return interp1d([1:state.params.nx[1]], ζ, velocities)
 end
 
 # return the index positions of the freezing fronts
-function front_indices(state::ModelState1d, phys::PhysicalParams)
+function front_indices(state::ModelState1d)
 
+    φ = state.phi
+    sφ = sign(φ)
     ζ = Int[]
     for i=2:length(state.temp)
-        if sign(state.temp[i]) != sign(state.temp[i-1])
-            push!(ζ, i)
+        if sφ[i] != sφ[i-1]
+            if abs(φ[i]) > abs(φ[i-1])
+                push!(ζ, i-1)
+            else
+                push!(ζ, i)
+            end
         end
     end
 
@@ -166,7 +174,7 @@ end
 
 # return the interpolated position of the freezing fronts
 function front_positions(state::ModelState1d, phys::PhysicalParams)
-    ζ = front_indices(state, phys)
+    ζ = front_indices(state)
 end
 
 # Linear interpolation of a 1-d sequence
