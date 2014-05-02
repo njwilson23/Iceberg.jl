@@ -123,33 +123,81 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
     # need to look right at the front, and compute the gradient on either side.
     # This is trivial for 1d, but it would be a good idea to think about how I
     # can generalize this to ND.
-    zidx = front_position(state, phys)
-    if (zidx < 3) | (zidx > state.params.nx[1] - 2)
-        warn("Zero level set includes the domain boundary")
-        return zeros(Float64, state.params.nx)
-    elseif zidx - 1 > phys.tmelt
-        idxsSolid = [zidx - 2, zidx - 1]
-        idxsLiquid = [zidx + 1, zidx + 2]
-    else
-        idxsSolid = [zidx + 1, zidx + 2]
-        idxsLiquid = [zidx - 2, zidx - 1]
+    ζ = front_indices(state, phys)
+    velocities = Array(Float64, length(ζ))
+    dx = state.params.dx[1]
+
+    for (i, z) in enumerate(ζ)
+
+        if (z < 3) | (z > state.params.nx[1] - 2)
+            warn("Zero level set includes the domain boundary")
+            return zeros(Float64, state.params.nx)
+        elseif z - 1 > phys.tmelt
+            idxsSolid = [z - 2, z - 1]
+            idxsLiquid = [z + 1, z + 2]
+        else
+            idxsSolid = [z + 1, z + 2]
+            idxsLiquid = [z - 2, z - 1]
+        end
+
+        ∇sol = 1.0/dx * dot(state.temp[idxsSolid], [-1, 1])
+        ∇liq = 1.0/dx * dot(state.temp[idxsLiquid], [-1, 1])
+        velocities[i] = 1.0/phys.Lf * (phys.kaps * ∇sol - phys.kapl * ∇liq)
+
     end
 
-    ∇sol = 1.0/state.params.dx[1] * dot(state.temp[idxsSolid], [-1, 1])
-    ∇liq = 1.0/state.params.dx[1] * dot(state.temp[idxsLiquid], [-1, 1])
-
-    vel = 1.0/phys.Lf * (phys.kaps * ∇sol - phys.kapl * ∇liq)
-    return vel * ones(Float64, state.params.nx)
+    return interp1d([1:state.params.nx[1]], ζ, velocities)
 end
 
-# return the position of the freezing front
-function front_position(state::ModelState1d, phys::PhysicalParams)
+# return the index positions of the freezing fronts
+function front_indices(state::ModelState1d, phys::PhysicalParams)
 
-    Tabs = abs(state.temp .- phys.tmelt)
-    zidx = find(Tabs .== minimum(Tabs))[1]
-    return zidx
+    ζ = Int[]
+    for i=2:length(state.temp)
+        if sign(state.temp[i]) != sign(state.temp[i-1])
+            push!(ζ, i)
+        end
+    end
 
+    #Tabs = abs(state.temp .- phys.tmelt)
+    #ζ = find(Tabs .== minimum(Tabs))
+    return ζ
 end
+
+# return the interpolated position of the freezing fronts
+function front_positions(state::ModelState1d, phys::PhysicalParams)
+    ζ = front_indices(state, phys)
+end
+
+# Linear interpolation of a 1-d sequence
+function interp1d(x::Vector, xp::Vector, yp::Vector)
+    dx₁ = (yp[2] - yp[1]) / (xp[2] - xp[1])
+    dx₂ = (yp[end] - yp[end-1]) / (xp[end] - xp[end-1])
+
+    lb = 1
+    y = Array(Float64, length(x))
+    for i=1:length(x)
+        if x[i] < xp[1]
+            y[i] = yp[1] - (xp[1] - x[i]) * dx₁
+        elseif x[i] >= xp[end]
+            y[i] = (x[i] - xp[end]) * dx₂ + yp[end]
+        else
+            ip = lb
+            for j = lb:length(xp)
+                if xp[j] > x[i]
+                    ip = j-1
+                    lb = j
+                    break
+                end
+            end
+
+            y[i] = (x[i]-xp[ip]) / (xp[ip+1]-xp[ip]) * (yp[ip+1]-yp[ip]) + yp[ip]
+        end
+    end
+    return y
+end
+
+
 
 # calculate ∇T
 function gradT(state::ModelState)
