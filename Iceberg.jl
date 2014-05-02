@@ -2,11 +2,16 @@ module Iceberg
 using ib_types
 import heat: tsolve!
 
-# temporary function to initialize the problem domain
-function initialize1d(n=32)
+export (ModelParams,
+        ModelState1d,
+        ModelParams2d,
+        PhysicalParams)
+
+# test problem with a step function in 1d
+function initialize1d_step(n=32)
 
     n2 = int(floor(n/2))
-    modelparams = ModelParams(1e-5, (1.0/n,), 100, (n,))
+    modelparams = ModelParams(1e-5, (1.0/n,), (n,))
     physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
 
     # set up a simple temperature field
@@ -21,11 +26,10 @@ function initialize1d(n=32)
     return ModelState1d(T, φ, modelparams), physics
 end
 
-# initialize the scenario in Hill (1987) on pp 6-14
+# test problem from Hill (1987), section 1.3
 function initialize1d_hill(n=32)
 
-    n2 = int(floor(n/2))
-    modelparams = ModelParams(1e-5, (1.0/n,), 100, (n,))
+    modelparams = ModelParams(1e-5, (1.0/n,), (n,))
     physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
 
     # set up a simple temperature field

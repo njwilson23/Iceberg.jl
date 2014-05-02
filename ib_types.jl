@@ -26,7 +26,6 @@ end
 type ModelParams
     dt::Float64
     dx::Tuple
-    nt::Integer
     nx::Tuple
 end
 
