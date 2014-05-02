@@ -2,10 +2,8 @@ module Iceberg
 using ib_types
 import heat: tsolve!
 
-export (ModelParams,
-        ModelState1d,
-        ModelParams2d,
-        PhysicalParams)
+export ModelParams, ModelState1d, ModelParams2d,
+       PhysicalParams
 
 # test problem with a step function in 1d
 function initialize1d_step(n=32)
@@ -47,18 +45,19 @@ end
 # test problem in 1d with multiple fronts
 function initialize1d_nfronts(n=64, nfronts=3)
 
-    modelparams = ModelParams(1e-5, (1.0/n,), (n,))
+    modelparams = ModelParams(1e-5, (2pi/n,), (n,))
     physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
 
     # set up a simple temperature field
-    x = linspace(0.0, modelparams.dx[1]*(modelparams.nx[1]-1), modelparams.nx[1])
-    T = cos(nfronts/2 * x)
+    x = linspace(0.0, 2pi, modelparams.nx[1])
+    T = cos(nfronts*x/2)
 
     # set up a global phi
     #φ = x .- modelparams.dx[1]*2
+    φ = copy(T)
+    reinitialize!(φ, 5)
 
     return ModelState1d(T, -φ, modelparams), physics
-
 end
 
 # test problem in 2d
@@ -80,16 +79,18 @@ function reinitialize!(phi::Vector, iters::Int)
     for it=1:iters
         dphi = sphi .* (1.0 .- abs(gradient(phi)))
         phi[:] .+= dphi
-        phi[:] = conv(0.2*ones(3), phi)[2:end-1]
+        phi[:] = conv([0.25, 0.5, 0.25], phi)[2:end-1]
     end
 end
 
 function reinitialize!(phi::Array, iters::Int)
     sphi = sign(phi)
-    convwin = ones(3) .* ones(3)'
+    convwin = [0.125 0.25 0.125;
+                0.25  0.5  0.25;
+               0.125 0.25 0.125] / 2
     for it=1:iters
         dphi = sphi .* (1.0 .- absgrad(phi, (1.0, 1.0)))
-        phi[:,:] = conv2(convwin/9, phi+dphi)[2:end-1, 2:end-1]
+        phi[:,:] = conv2(convwin, phi+dphi)[2:end-1, 2:end-1]
     end
 end
 
