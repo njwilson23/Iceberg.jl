@@ -38,12 +38,82 @@ function initialize1d_hill(n=32)
     T[2:end] = 0.0
 
     # set up a global phi
-    #x = linspace(0.5*modelparams.dx[1], modelparams.dx[1]*n-0.5*modelparams.dx[1], n)
     x = linspace(0.0, modelparams.dx[1]*(modelparams.nx[1]-1), modelparams.nx[1])
     φ = x .- modelparams.dx[1]*2
 
     return ModelState1d(T, -φ, modelparams), physics
 end
+
+# test problem in 1d with multiple fronts
+function initialize1d_nfronts(n=64, nfronts=3)
+
+    modelparams = ModelParams(1e-5, (1.0/n,), (n,))
+    physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
+
+    # set up a simple temperature field
+    x = linspace(0.0, modelparams.dx[1]*(modelparams.nx[1]-1), modelparams.nx[1])
+    T = cos(nfronts/2 * x)
+
+    # set up a global phi
+    #φ = x .- modelparams.dx[1]*2
+
+    return ModelState1d(T, -φ, modelparams), physics
+
+end
+
+# test problem in 2d
+function initialize2d(n=32)
+
+end
+
+compute_lsfunc(state::ModelState) = compute_lsfunc(state.temp, state.params.dx)
+function compute_lsfunc(temp::Vector, dx::Tuple)
+
+    # find zero crossings
+
+end
+
+# reinitialize following the simple relaxation scheme of Rouy and Tourin
+# A viscosity solutions approach to shape-from-shading (1992)
+function reinitialize!(phi::Vector, iters::Int)
+    sphi = sign(phi)
+    for it=1:iters
+        dphi = sphi .* (1.0 .- abs(gradient(phi)))
+        phi[:] .+= dphi
+        phi[:] = conv(0.2*ones(3), phi)[2:end-1]
+    end
+end
+
+function reinitialize!(phi::Array, iters::Int)
+    sphi = sign(phi)
+    convwin = ones(3) .* ones(3)'
+    for it=1:iters
+        dphi = sphi .* (1.0 .- absgrad(phi, (1.0, 1.0)))
+        phi[:,:] = conv2(convwin/9, phi+dphi)[2:end-1, 2:end-1]
+    end
+end
+
+function absgrad(A::Vector, h::Tuple)
+    abs(gradient(A, h[1]))
+end
+
+# needs to be extended to Nd
+function absgrad(A::Array, h::Tuple)
+
+    m, n = size(A)
+    dx = Array(Float64, (m,n))
+    dy = Array(Float64, (m,n))
+
+    for irow=1:m
+        dx[irow,:] = gradient(reshape(A[irow,:], n), h[1])
+    end
+    for icol = 1:n
+        dy[:,icol] = gradient(reshape(A[:,icol], m), h[2])
+    end
+
+    return sqrt(dx.^2 + dy.^2)
+end
+
 
 # computes the normal velocity based on temperature gradient
 # 1d only right now
