@@ -168,10 +168,11 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
         velocities[i] = (phys.kaps * ∇sol - phys.kapl * ∇liq) / phys.Lf
 
     end
+
     if length(ζ) > 1
         return interp1d([1:state.params.nx[1]], ζ, velocities)
     else
-        return ζ[1] * ones(Float64, state.params.nx[1])
+        return velocities[1] * ones(Float64, state.params.nx[1])
     end
 end
 
@@ -183,7 +184,11 @@ function front_indices(state::ModelState1d)
     ζ = Int[]
     for i=2:length(state.temp)
         if sφ[i] != sφ[i-1]
-            if abs(φ[i]) > abs(φ[i-1])
+            if sφ[i] == 0           # skip this case because the next
+                pass                # condition will catch it next iteration
+            elseif sφ[i-1] == 0
+                push!(ζ, i-1)
+            elseif abs(φ[i]) > abs(φ[i-1])
                 push!(ζ, i-1)
             else
                 push!(ζ, i)

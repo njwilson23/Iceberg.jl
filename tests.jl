@@ -33,13 +33,27 @@ function test_front_indices()
 
     # multiple fronts
     x = linspace(0, 4pi, 100)
-    state = ModelState1d(sin(x),       # T
-                         -sin(x),     # φ
+    state = ModelState1d(sin(x),    # T
+                         -sin(x),   # φ
                          ModelParams(1e-5, (0.04,), (50,)))
     ζ = Iceberg.front_indices(state)
+    println(ζ)
     @test ζ == [1, 26, 50, 75]
 end
 
+function test_front_velocity()
+
+    # Single front with velocity = (κs dTs - κl dTl) / L
+    #                            = (1 * 1 - 0.5 * 1) / 1
+    #                            = 0.5
+    physics = PhysicalParams(1.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
+    x = linspace(0, 1, 101)
+    state = ModelState1d(x.-0.5,    # T
+                         0.5.-x,    # φ
+                         ModelParams(1e-5, (0.01,), (101,)))
+    u = Iceberg.front_velocity(state, physics)
+    @test_approx_eq u 0.5*ones(101)
+end
 
 # ensure that the 1D solution is tolarably close to an analytical solution
 function test_tsolve1d()
@@ -50,5 +64,6 @@ end
 test_initialize1d()
 test_interp1d()
 test_front_indices()
+test_front_velocity()
 
 end #module
