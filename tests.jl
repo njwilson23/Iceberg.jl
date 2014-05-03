@@ -62,7 +62,6 @@ function test_hill_onephase()
 
     x_numerical = Float64[]
     state, physics = Iceberg.initialize1d_hill(200)
-    state.params.dt = 1e-5
 
     tend = 0.5
     nt = tend / state.params.dt
