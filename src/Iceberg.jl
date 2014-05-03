@@ -1,7 +1,7 @@
 module Iceberg
 import Base.show
 
-include("ib_types.jl")
+include("types.jl")
 include("heat.jl")
 include("initializations.jl")
 
