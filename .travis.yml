@@ -4,10 +4,9 @@ compiler:
 branches:
   - only:
     - master
-    - travis
 env:
   matrix:
-    - JULIAVERSION="juliareleases"
+    #- JULIAVERSION="juliareleases"
     - JULIAVERSION="julianightlies"
 before_install:
     - sudo add-apt-repository ppa:staticfloat/julia-deps -y
@@ -15,5 +14,5 @@ before_install:
     - sudo apt-get update -qq -y
     - sudo apt-get install julia -y
 script:
-    - julia -e 'Pkg.init(); Pgk.clone("git@github.com:njwilson23/Iceberg.jl.git"); Pkg.resolve()'
+    - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir("Iceberg"))`); Pkg.pin("Iceberg"); Pkg.resolve()'
     - julia ./tests.jl

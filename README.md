@@ -1,7 +1,11 @@
 Iceberg.jl
 ==========
 
+[![Build Status](https://travis-ci.org/njwilson23/Iceberg.jl.svg?branch=travis)](https://travis-ci.org/njwilson23/Iceberg.jl)
+
 Performs ice-seawater interface calculations using level set methods. Level set scheme is based in part off that described by Chen, et al. (1997). Model state in passed around using a subtype of the `ModelState` abstract type. Physical constants and parameters are contained in a `PhysicalParameters` type. See `initialize1d()` for an example.
+
+Requires a recent build of julia (i.e. 0.3-prerelease).
 
 ## Model dimension
 
