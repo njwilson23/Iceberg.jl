@@ -129,26 +129,50 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
 
     for (i, z) in enumerate(ζ)
 
-        if (z < 3) | (z > state.params.nx[1] - 2)
-            warn("Zero level set includes the domain boundary")
-            return zeros(Float64, state.params.nx)
-        elseif z - 1 > phys.tmelt
-            idxsSolid = [z - 2, z - 1]
-            idxsLiquid = [z + 1, z + 2]
-        else
-            idxsSolid = [z + 1, z + 2]
-            idxsLiquid = [z - 2, z - 1]
+        if (z > 2) & (z < state.params.nx[1] - 1)
+
+            if state.phi[z-1] > 0.0
+                idxsSolid = [z - 2, z - 1]
+                idxsLiquid = [z + 1, z + 2]
+            else
+                idxsSolid = [z + 1, z + 2]
+                idxsLiquid = [z - 2, z - 1]
+            end
+
+        elseif (z <= 2)
+
+            if state.phi[z] > 0.0
+                idxsSolid = [1, 1]
+                idxsLiquid = [z + 1, z + 2]
+            else
+                idxsSolid = [z + 1, z + 2]
+                idxsLiquid = [1, 1]
+            end
+
+        elseif (z >= state.params.nx[1] - 1)
+
+            n = state.params.nx[1]
+
+            if state.phi[z] > 0.0
+                idxsSolid = [n, n]
+                idxsLiquid = [z - 1, z - 2]
+            else
+                idxsSolid = [z - 1, z - 2]
+                idxsLiquid = [n, n]
+            end
+
         end
 
         ∇sol = 1.0/dx * dot(state.temp[idxsSolid], [-1, 1])
         ∇liq = 1.0/dx * dot(state.temp[idxsLiquid], [-1, 1])
-        velocities[i] = 1.0/phys.Lf * (phys.kaps * ∇sol - phys.kapl * ∇liq)
+        velocities[i] = (phys.kaps * ∇sol - phys.kapl * ∇liq) / phys.Lf
 
     end
-    #println(ζ)
-    #println(velocities)
-
-    return interp1d([1:state.params.nx[1]], ζ, velocities)
+    if length(ζ) > 1
+        return interp1d([1:state.params.nx[1]], ζ, velocities)
+    else
+        return ζ[1] * ones(Float64, state.params.nx[1])
+    end
 end
 
 # return the index positions of the freezing fronts
@@ -167,8 +191,6 @@ function front_indices(state::ModelState1d)
         end
     end
 
-    #Tabs = abs(state.temp .- phys.tmelt)
-    #ζ = find(Tabs .== minimum(Tabs))
     return ζ
 end
 
@@ -205,17 +227,12 @@ function interp1d(x::Vector, xp::Vector, yp::Vector)
     return y
 end
 
-
-
-# calculate ∇T
-function gradT(state::ModelState)
-
-    T = state.temp
-    dx = diff(T, 1)
-    dy = diff(T, 2)
-    # not finished!
+# update the level set function by calculating interface velocities and solving
+# the hyperbolic evolution equation
+function lsupdate!(state::ModelState, phys::PhysicalParams)
 
 end
+
 
 # reinitialize the level set function
 # 1d only right now
