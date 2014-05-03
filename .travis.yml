@@ -1,6 +1,10 @@
 language: c
 compiler:
     - gcc
+branches:
+  - only:
+    - master
+    - travis
 env:
   matrix:
     - JULIAVERSION="juliareleases"
