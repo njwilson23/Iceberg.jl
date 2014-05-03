@@ -1,10 +1,13 @@
 module Iceberg
+import Base.show
 
-export ModelParams, ModelState1d, ModelParams2d,
-       PhysicalParams
-
-include("heat.jl")
 include("ib_types.jl")
+include("heat.jl")
+
+export ModelParams,
+       ModelState1d,
+       ModelState2d,
+       PhysicalParams
 
 # test problem with a step function in 1d
 function initialize1d_step(n=32)

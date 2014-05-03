@@ -1,7 +1,3 @@
-module heat
-
-using ib_types
-
 function assemble_mat(state::ModelState1d)
     n = state.params.nx[1]
     L = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
@@ -49,6 +45,4 @@ function tsolve!(state::ModelState, phys::PhysicalParams)
     state.temp[mskSolid] = min(state.temp[mskSolid], phys.tmelt)
 
     return state.temp
-end
-
 end

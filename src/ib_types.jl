@@ -1,7 +1,3 @@
-module ib_types
-import Base.show
-export ModelState, ModelState1d, ModelState2d
-export ModelParams, PhysicalParams
 
 # maybe this should be a dictionary?
 #PhysicalParams = {:kapl => 1.0,
@@ -45,5 +41,3 @@ end
 
 print(io::IO, A::ModelState) = @sprintf("Problem of size %s", size(A.phi))
 
-
-end
