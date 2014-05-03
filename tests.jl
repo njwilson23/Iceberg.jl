@@ -86,9 +86,25 @@ function test_hill_onephase()
 
 end
 
+function test_front_positions()
+    println("test_front_positions")
+    
+    n = 256
+    x = linspace(0, 2pi, n)
+    dx = 2pi/n
+    phi = -cos(2x)
+    state = ModelState1d(0*phi, phi, ModelParams(0.01, (dx,),  (n,)))
+    X = Iceberg.front_positions(state)
+    Xtrue = [pi/4, 3pi/4, 5pi/4, 7pi/4]
+    residual = abs(Xtrue - X)
+    @test sum(residual) < 0.05
+
+end
+
 test_initialize1d()
 test_interp1d()
 test_front_indices()
+test_front_positions()
 test_front_velocity()
 test_hill_onephase()
 

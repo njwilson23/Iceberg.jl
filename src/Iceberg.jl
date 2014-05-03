@@ -18,6 +18,19 @@ function compute_lsfunc(temp::Vector, dx::Tuple)
 
 end
 
+function exact_phi(state::ModelState1d)
+    zeta = Iceberg.front_indices(state)
+    X = Iceberg.front_positions(state) / state.params.dx[1]
+    if length(zeta) > 0
+        sdist = -sign(state.temp) .* minimum(Float64[abs(x-z)
+                                        for x=1:state.params.nx[1],
+                                            z in zeta], 2)
+    else
+        sdist = -ones(Float64, state.params.nx[1])
+    end
+    return sdist[:] * state.params.dx[1]
+end
+
 # reinitialize following the simple relaxation scheme of Rouy and Tourin
 # A viscosity solutions approach to shape-from-shading (1992)
 function reinitialize!(phi::Vector, iters::Int)
@@ -117,8 +130,10 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
 
     if length(ζ) > 1
         return interp1d([1:state.params.nx[1]], ζ, velocities)
-    else
+    elseif length(ζ) > 0
         return velocities[1] * ones(Float64, state.params.nx[1])
+    else
+        return zeros(Float64, state.params.nx[1])
     end
 end
 
@@ -146,8 +161,25 @@ function front_indices(state::ModelState1d)
 end
 
 # return the interpolated position of the freezing fronts
-function front_positions(state::ModelState1d, phys::PhysicalParams)
+function front_positions(state::ModelState1d)
+    φ = state.phi
     ζ = front_indices(state)
+    if length(ζ) == 0
+        return Float64[]
+    end
+    X = Array(Float64, size(ζ))
+    for (i, z) in enumerate(ζ)
+        if 1 < z < state.params.nx[1]
+            dφ = (φ[z+1] - φ[z-1]) / 2state.params.dx[1]
+        elseif z > 1
+            dφ = (φ[z] - φ[z-1]) / state.params.dx[1]
+        else
+            dφ = (φ[z+1] - φ[z]) / state.params.dx[1]
+        end
+
+        X[i] = (z-1)*state.params.dx[1] - (φ[z] / dφ)
+    end
+    return X
 end
 
 # Linear interpolation of a 1-d sequence
@@ -183,20 +215,5 @@ end
 function lsupdate!(state::ModelState, phys::PhysicalParams)
 
 end
-
-
-# reinitialize the level set function
-# 1d only right now
-#function lsupdate!(state::ModelState, phys::PhysicalParams)
-#
-#    Tabs = abs(state.temp .- phys.tmelt)
-#    zidx = find(Tabs .== minimum(Tabs))[1]
-#    
-#    for idx=1:state.params.nx[1]
-#        x = idx * state.params.dx[1]
-#        state.phi[idx] = -sign(state.temp[idx]) * state.params.dx[1] * abs(idx - zidx)
-#    end
-#
-#end
 
 end #module
