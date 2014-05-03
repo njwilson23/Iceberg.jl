@@ -1,9 +1,10 @@
 module Iceberg
-using ib_types
-import heat: tsolve!
 
 export ModelParams, ModelState1d, ModelParams2d,
        PhysicalParams
+
+include("heat.jl")
+include("ib_types.jl")
 
 # test problem with a step function in 1d
 function initialize1d_step(n=32)
