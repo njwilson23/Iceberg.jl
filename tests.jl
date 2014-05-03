@@ -23,8 +23,9 @@ function test_interp1d()
 end
 
 function test_front_indices()
-    # single front
     println("test_front_indices")
+
+    # single front
     state = ModelState1d(linspace(-1, 1, 50),       # T
                          linspace(25, -25, 50),     # φ
                          ModelParams(1e-5, (0.04,), (50,)))
@@ -37,11 +38,11 @@ function test_front_indices()
                          -sin(x),   # φ
                          ModelParams(1e-5, (0.04,), (50,)))
     ζ = Iceberg.front_indices(state)
-    println(ζ)
     @test ζ == [1, 26, 50, 75]
 end
 
 function test_front_velocity()
+    println("test_front_velocity")
 
     # Single front with velocity = (κs dTs - κl dTl) / L
     #                            = (1 * 1 - 0.5 * 1) / 1
@@ -56,8 +57,33 @@ function test_front_velocity()
 end
 
 # ensure that the 1D solution is tolarably close to an analytical solution
-function test_tsolve1d()
+function test_hill_onephase()
+    println("test_hill_onephase")
 
+    x_numerical = Float64[]
+    state, physics = Iceberg.initialize1d_hill(200)
+    state.params.dt = 1e-5
+
+    tend = 0.5
+    nt = tend / state.params.dt
+
+    for i=1:nt
+        Iceberg.tsolve!(state, physics)
+        vel = Iceberg.front_velocity(state, physics)
+        state.phi += state.params.dt * vel
+        
+        zeta = Iceberg.front_indices(state)[1]
+        push!(x_numerical, zeta[1] * state.params.dx[1])
+    end
+
+    t = state.params.dt * [1:nt]
+    x_analytical = sqrt(2*0.769 * physics.kaps * t / (physics.rhos*physics.cps))
+
+    residual = x_analytical - x_numerical
+    @printf("L∞ norm: %1.3f\n", sum(abs(residual)))
+    @printf("L1 norm: %1.3f (required to be less than 0.02)\n",
+            maximum(abs(residual)))
+    @test maximum(abs(residual)) < 0.02
 
 end
 
@@ -65,5 +91,6 @@ test_initialize1d()
 test_interp1d()
 test_front_indices()
 test_front_velocity()
+test_hill_onephase()
 
 end #module
