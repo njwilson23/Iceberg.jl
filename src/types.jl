@@ -8,7 +8,7 @@
 #                  :rhos => 1.0,
 #                  :tmelt => 0.0}
 
-immutable PhysicalParams
+type PhysicalParams
     Lf::Float64
     kapl::Float64
     kaps::Float64
@@ -19,7 +19,7 @@ immutable PhysicalParams
     tmelt::Float64
 end
 
-immutable ModelParams
+type ModelParams
     dt::Float64
     dx::Tuple
     nx::Tuple
