@@ -46,12 +46,15 @@ function reinitialize!(state::ModelState1d, iters::Int; k=0.01)
     D[end,end] = -2
     D[end,end-1] = 2
     kd = 0.1
+    bc1 = kd*k*(φ[1]   < 0 ? 2/dx : -2/dx)
+    bc2 = kd*k*(φ[end] < 0 ? 2/dx : -2/dx)
     for it=1:iters
         dφ = sφ .* (1.0 .- abs(gradient(φ, dx)))
-        φ[:] .+= k * (dφ + kd*D*φ/dx^2)
-        # Neumann boundary conditions for numerical diffusion
-        φ[1]   -= φ[1]   < 0 ? 2kd*k/dx : -2kd*k/dx
-        φ[end] -= φ[end] < 0 ? 2kd*k/dx : -2kd*k/dx
+        φ[:] .+= k * dφ
+        # Numerical diffusion step
+        φ[1] -= bc1
+        φ[end] -= bc2
+        φ[:] = (spdiagm(ones(n), 0) - D*kd*k/(2dx^2)) \ φ
     end
 end
 
