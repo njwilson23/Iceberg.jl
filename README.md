@@ -9,7 +9,8 @@ passed around using a subtype of the `ModelState` abstract type. Physical
 constants and parameters are contained in a `PhysicalParameters` type. See
 `initialize1d()` for an example.
 
-Requires a recent build of Julia (i.e. 0.3).
+__Iceberg is new and under development. It requires a recent build of Julia
+(i.e. 0.3).__
 
 ## Model dimension
 
@@ -35,8 +36,6 @@ with `n=200` is a part of the test suite.
 ## To do
 
 - extend to higher dimensions
-- supplement explicit heat equation solver with an implicit scheme
-- add methods to evolve the level set function
 - add simple Navier-Stokes field solver for fluid phase
 
 ## References
