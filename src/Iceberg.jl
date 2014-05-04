@@ -22,13 +22,12 @@ function exact_phi(state::ModelState1d)
     zeta = Iceberg.front_indices(state)
     if length(zeta) > 0
         dx = state.params.dx[1]
-        X = Iceberg.front_positions(state)
-        xcoord = linspace(0.0, state.params.nx[1] * dx, state.params.nx[1])
-        sdist = -sign(state.temp) .* minimum(Float64[abs(x-xf)
-                                        for x=xcoord,
-                                            xf in X], 2)
+        nx = state.params.nx[1]
+        dtable = Float64[abs(x-xf) for x=linspace(0.0, (nx-1)*dx, nx),
+                                       xf in Iceberg.front_positions(state)]
+        sdist = -sign(state.temp) .* minimum(dtable, 2)
     else
-        sdist = -ones(Float64, state.params.nx[1]) * state.params.dx[1]
+        sdist = nan * Array(Float64, state.params.nx[1])
     end
     return sdist[:]
 end
