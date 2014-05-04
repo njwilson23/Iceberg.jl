@@ -49,11 +49,10 @@ function initialize1d_nfronts(n=64, nfronts=3)
     T = cos(nfronts*x/2)
 
     # set up a global phi
-    #φ = x .- modelparams.dx[1]*2
-    φ = copy(T)
-    reinitialize!(φ, 5)
+    state = ModelState1d(T, -copy(T), modelparams)
+    reinitialize!(state, 5)
 
-    return ModelState1d(T, -φ, modelparams), physics
+    return state, physics
 end
 
 # test problem in 2d

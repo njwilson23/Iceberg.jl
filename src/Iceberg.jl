@@ -20,36 +20,40 @@ end
 
 function exact_phi(state::ModelState1d)
     zeta = Iceberg.front_indices(state)
-    X = Iceberg.front_positions(state) / state.params.dx[1]
     if length(zeta) > 0
-        sdist = -sign(state.temp) .* minimum(Float64[abs(x-z)
-                                        for x=1:state.params.nx[1],
-                                            z in zeta], 2)
+        dx = state.params.dx[1]
+        X = Iceberg.front_positions(state)
+        xcoord = linspace(0.0, state.params.nx[1] * dx, state.params.nx[1])
+        sdist = -sign(state.temp) .* minimum(Float64[abs(x-xf)
+                                        for x=xcoord,
+                                            xf in X], 2)
     else
-        sdist = -ones(Float64, state.params.nx[1])
+        sdist = -ones(Float64, state.params.nx[1]) * state.params.dx[1]
     end
-    return sdist[:] * state.params.dx[1]
+    return sdist[:]
 end
 
 # reinitialize following the simple relaxation scheme of Rouy and Tourin
 # A viscosity solutions approach to shape-from-shading (1992)
-function reinitialize!(phi::Vector, iters::Int)
-    sphi = sign(phi)
+function reinitialize!(state::ModelState1d, iters::Int; k=0.01)
+    φ = state.phi
+    sφ = sign(φ)
     for it=1:iters
-        dphi = sphi .* (1.0 .- abs(gradient(phi)))
-        phi[:] .+= dphi
-        phi[:] = conv([0.25, 0.5, 0.25], phi)[2:end-1]
+        dφ = sφ .* (1.0 .- abs(gradient(φ, state.params.dx[1])))
+        φ[:] .+= dφ * k
+        φ[:] = conv([0.1, 0.8, 0.1], φ)[2:end-1]
     end
 end
 
-function reinitialize!(phi::Array, iters::Int)
-    sphi = sign(phi)
+function reinitialize!(state::ModelState2d, iters::Int)
+    φ = state.phi
+    sφ = sign(φ)
     convwin = [0.125 0.25 0.125;
                 0.25  0.5  0.25;
                0.125 0.25 0.125] / 2
     for it=1:iters
-        dphi = sphi .* (1.0 .- absgrad(phi, (1.0, 1.0)))
-        phi[:,:] = conv2(convwin, phi+dphi)[2:end-1, 2:end-1]
+        dφ = sφ .* (1.0 .- absgrad(φ, (1.0, 1.0), state.params.dx))
+        φ[:,:] = conv2(convwin, φ+dφ)[2:end-1, 2:end-1]
     end
 end
 
