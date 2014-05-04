@@ -54,7 +54,7 @@ function reinitialize!(state::ModelState1d, iters::Int; k=0.01)
         # Numerical diffusion step
         φ[1] -= bc1
         φ[end] -= bc2
-        φ[:] = (spdiagm(ones(n), 0) - D*kd*k/(2dx^2)) \ φ
+        φ[:] = (spdiagm(ones(n), 0) - D*kd*k/(dx^2)) \ φ
     end
 end
 
