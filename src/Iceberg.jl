@@ -37,10 +37,16 @@ end
 function reinitialize!(state::ModelState1d, iters::Int; k=0.01)
     φ = state.phi
     sφ = sign(φ)
+    dx = state.params.dx[1]
+    n = state.params.nx[1]
+    D = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1,0,1))
+    D[1,1] = -2
+    D[1,2] = 2
+    D[end,end] = -2
+    D[end,end-1] = 2
     for it=1:iters
-        dφ = sφ .* (1.0 .- abs(gradient(φ, state.params.dx[1])))
-        φ[:] .+= dφ * k
-        φ[:] = conv([0.1, 0.8, 0.1], φ)[2:end-1]
+        dφ = sφ .* (1.0 .- abs(gradient(φ, dx)))
+        φ[:] .+= k * (dφ + 0.1*D*φ/dx^2)
     end
 end
 
