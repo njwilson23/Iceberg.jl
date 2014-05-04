@@ -39,14 +39,19 @@ function reinitialize!(state::ModelState1d, iters::Int; k=0.01)
     sφ = sign(φ)
     dx = state.params.dx[1]
     n = state.params.nx[1]
+    # Matrix for numerical diffusion
     D = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1,0,1))
     D[1,1] = -2
     D[1,2] = 2
     D[end,end] = -2
     D[end,end-1] = 2
+    kd = 0.1
     for it=1:iters
         dφ = sφ .* (1.0 .- abs(gradient(φ, dx)))
-        φ[:] .+= k * (dφ + 0.1*D*φ/dx^2)
+        φ[:] .+= k * (dφ + kd*D*φ/dx^2)
+        # Neumann boundary conditions for numerical diffusion
+        φ[1]   -= φ[1]   < 0 ? 2kd*k/dx : -2kd*k/dx
+        φ[end] -= φ[end] < 0 ? 2kd*k/dx : -2kd*k/dx
     end
 end
 
