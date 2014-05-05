@@ -32,6 +32,11 @@ function exact_phi(state::ModelState1d)
     return sdist[:]
 end
 
+# the simplest possible linear search
+function exact_phi(state::ModelState2d)
+
+end
+
 # reinitialize following the simple relaxation scheme of Rouy and Tourin
 # A viscosity solutions approach to shape-from-shading (1992)
 function reinitialize!(state::ModelState1d, iters::Int; k=0.01, kd=0.03)
@@ -39,10 +44,13 @@ function reinitialize!(state::ModelState1d, iters::Int; k=0.01, kd=0.03)
     sφ = sign(φ)
     dx = state.params.dx[1]
     n = state.params.nx[1]
+
     # Matrix for numerical diffusion
     D = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1,0,1))
     D[1,2] = 2.0
     D[end,end-1] = 2.0
+
+    # Neumann boundary conditions for signed distance function
     bc1 = kd*k*(φ[1]   < 0 ? 2/dx : -2/dx)
     bc2 = kd*k*(φ[end] < 0 ? 2/dx : -2/dx)
     for it=1:iters
@@ -55,34 +63,38 @@ function reinitialize!(state::ModelState1d, iters::Int; k=0.01, kd=0.03)
     end
 end
 
-function reinitialize!(state::ModelState2d, iters::Int; k=0.01, kd=0.03)
+# warning: boundary condition code assumes a square array
+function reinitialize!(state::ModelState2d, iters::Int; k=0.01, kd=0.005)
     φ = state.phi
     sφ = sign(φ)
     dx = state.params.dx
     m, n = state.params.nx
 
     # Matrix for numerical diffusion
-    L1 = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
-    L2 = spdiagm((ones(m-1), -2ones(m), ones(m-1)), (-1, 0, 1))
-    for L_ in (L1, L2)
-        L_[1,2] = 2.0
-        L_[end,end-1] = 2.0
+    D1 = spdiagm((ones(n-1), -2ones(n), ones(n-1)), (-1, 0, 1))
+    D2 = spdiagm((ones(m-1), -2ones(m), ones(m-1)), (-1, 0, 1))
+    for D_ in (D1, D2)
+        D_[1,2] = 2.0
+        D_[end,end-1] = 2.0
     end
-    L = kron(L1, speye(m)) + kron(speye(n), L2)
+    D = kron(D1, speye(m)) + kron(speye(n), D2)
 
     # Boundary indexes in lexigraphic order
     Ω = [1:m, m+1:m:m*(n-2)+1, 2m:m:m*(n-1), m*n-m+1:m*n]
     sort!(Ω)
+
+    # Neumann boundary conditions for signed distance function
     bcs = Array(Float32, length(Ω))
-    bcs[φ[Ω] .< 0.0] = 2.0/dx
-    bcs[φ[Ω] .>= 0.0] = -2.0/dx
+    bcs[φ[Ω] .< 0.0] = 2.0/dx[1] * kd*k
+    bcs[φ[Ω] .>= 0.0] = -2.0/dx[1] * kd*k
 
     for it=1:iters
         dφ = sφ .* (1.0 .- absgrad(φ, dx))
-        φ[:] .+= k * dφ
+        φ[:,:] .+= k * dφ
         # Numerical diffusion step
         φ[Ω] -= bcs
-        φ[:] = (spdiagm(ones(n), 0) - D*kd*k/(dx^2)) \ φ
+        # warning: also assumes square array, i.e. dx[1] == dx[2]
+        φ[:] = (spdiagm(ones(n^2), 0) - D*kd*k/(dx[1].^2)) \ φ[:]
     end
 end
 
