@@ -34,7 +34,7 @@ end
 
 # the simplest possible linear search
 function exact_phi(state::ModelState2d)
-
+    error("Not implemented")
 end
 
 # reinitialize following the simple relaxation scheme of Rouy and Tourin
@@ -104,24 +104,25 @@ end
 
 # needs to be extended to Nd
 function absgrad(A::Array, h::Tuple)
+    dx, dy = grad(A, h)
+    return sqrt(dx.^2 + dy.^2)
+end
 
+function grad(A::Array, h::Tuple)
     m, n = size(A)
     dx = Array(Float64, (m,n))
     dy = Array(Float64, (m,n))
-
     for irow=1:m
         dx[irow,:] = gradient(reshape(A[irow,:], n), h[1])
     end
     for icol = 1:n
         dy[:,icol] = gradient(reshape(A[:,icol], m), h[2])
     end
-
-    return sqrt(dx.^2 + dy.^2)
+    return dx, dy
 end
 
 
 # computes the normal velocity based on temperature gradient
-# 1d only right now
 function front_velocity(state::ModelState1d, phys::PhysicalParams)
 
     # need to look right at the front, and compute the gradient on either side.
@@ -180,6 +181,53 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
     else
         return zeros(Float64, state.params.nx[1])
     end
+end
+
+# 2d front velocities using Chen's (1997) approximation where 
+#   cps = cpl = kaps = kapl = 1
+function front_velocity_chen(state::ModelState2d, phys::PhysicalParams)
+
+    #dtdnLiquid = nan*Array(Float64, state.params.nx)
+    #dtdnLiquid = nan*Array(Float64, state.params.nx)
+    #isSolid = state.phi .>= 0.0
+
+    # Normal directions
+    φ = state.phi
+    φx, φy = grad(state.phi, state.params.dx)
+    # Temperature gradient
+    dtdx, dtdy = grad(state.temp, state.params.dx)
+
+    # Extend the derivatives in the normal direction using upwinding
+    # dT/dx
+    d2tdx2 = zeros(Float64, size(dtdx))
+    k = 0.1 * state.params.dx[2]
+    for i = 1:state.params.nx[2]
+        d2tdx2[:,2:end-1] = 0.5 * (dtdx[:,3:end] - dtdx[:,1:end-2])
+        dtdx -= k * sign(φ .* φx) * d2tdx2
+    end
+
+    d2tdy2 = zeros(Float64, size(dtdy))
+    k = 0.1 * state.params.dx[2]
+    for i = 1:state.params.nx[2]
+        d2tdy2[2:end-1,:] = 0.5 * (dtdy[3:end,:] - dtdy[1:end-2,:])
+        dtdy -= k * sign(φ .* φx) * d2tdy2
+    end
+
+    # Temperature gradient normal to level sets
+    dtdn = dtdx*φx + dtdy*φy
+
+    #dtdnSolid[isSolid] = dtdn[isSolid]
+    #dtdnLiquid[~isSolid] = dtdn[~isSolid]
+    return -dtdn / phys.Lf
+
+    # Alternative algorithm:
+    #
+    # look a every undefined point in the solid domain.
+    # if there is a neighbouring undefined point, it borders an interface
+    # associate the solid border cells with a downstream (in φ) liquid value
+    # and perform the complimentary operation
+    # compute the velocity of the front where there are paired derivatives
+
 end
 
 # return the index positions of the freezing fronts
@@ -255,10 +303,9 @@ function interp1d(x::Vector, xp::Vector, yp::Vector)
     return y
 end
 
-# update the level set function by calculating interface velocities and solving
-# the hyperbolic evolution equation
-function lsupdate!(state::ModelState, phys::PhysicalParams)
-
+# update the level set function using conservation law methods
+function lsupdate!(state::ModelState, dphi::Array)
+    error("Not implemented")
 end
 
 end #module
