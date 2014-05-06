@@ -81,9 +81,9 @@ function test_hill_onephase()
 
     residual = x_analytical - x_numerical
     @printf("L∞ norm: %1.3f\n", sum(abs(residual)))
-    @printf("L1 norm: %1.3f (required to be less than 0.02)\n",
+    @printf("L1 norm: %1.3f (required to be less than 0.01)\n",
             maximum(abs(residual)))
-    @test maximum(abs(residual)) < 0.02
+    @test maximum(abs(residual)) < 0.01
 
 end
 
