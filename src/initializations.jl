@@ -58,6 +58,32 @@ function initialize1d_nfronts(n=64, nfronts=3)
     return state, physics
 end
 
+function initialize2d_front(n=64)
+
+    physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
+    modelparams = ModelParams(1e-3, (1.0/(n-1), 1.0/(n-1)), (n, n))
+
+    x = linspace(0.0, 1.0, modelparams.nx[1])
+    y = linspace(0.0, 1.0, modelparams.nx[2])
+
+    T = Array(Float64, (n,n))
+    for i=1:n
+        for j=1:n
+            if i + j <= n
+                T[i,j] = 0.0
+            else
+                T[i,j] = 1.0
+            end
+        end
+    end
+
+    phi = (0.5 .- T)
+    state = ModelState2d(T, phi, modelparams)
+    reinitialize!(state, 2n)
+    return state, physics
+end
+
+
 # test problem in 2d
 function initialize2d_square(n=32)
 
@@ -77,7 +103,7 @@ function initialize2d_square(n=32)
     n3 = n/3
     u1 = linspace(-n3, 2n3, n)
     u2 = linspace(2n3, -n3, n)
-    state.phi = state.params.dx[1] * min(u1 .* ones(32)', u2 .* ones(32)',
-                                         u1' .* ones(32), u2' .* ones(32))
+    state.phi = state.params.dx[1] * min(u1 .* ones(n)', u2 .* ones(n)',
+                                         u1' .* ones(n), u2' .* ones(n))
     return state, physics
 end
