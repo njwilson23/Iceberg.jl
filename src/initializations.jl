@@ -58,10 +58,37 @@ function initialize1d_nfronts(n=64, nfronts=3)
     return state, physics
 end
 
-function initialize2d_front(n=64)
+# 2d problem with a vertical freezing front akin to the Hill (1.3) scenario
+function initialize2d_frontv(n=64)
 
     physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
-    modelparams = ModelParams(1e-3, (1.0/(n-1), 1.0/(n-1)), (n, n))
+    modelparams = ModelParams(2.5e-3, (1.0/(n-1), 1.0/(n-1)), (n, n))
+
+    x = linspace(0.0, 1.0, modelparams.nx[1])
+    y = linspace(0.0, 1.0, modelparams.nx[2])
+
+    T = Array(Float64, (n,n))
+    for i=1:n
+        for j=1:n
+            if j <= n/2
+                T[i,j] = 0.0
+            else
+                T[i,j] = 1.0
+            end
+        end
+    end
+
+    phi = (0.5 .- T)
+    state = ModelState2d(T, phi, modelparams)
+    reinitialize!(state, 2n)
+    return state, physics
+end
+
+# 2d problem with a diagonal freezing front akin to the Hill (1.3) scenario
+function initialize2d_frontd(n=64)
+
+    physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
+    modelparams = ModelParams(2.5e-3, (1.0/(n-1), 1.0/(n-1)), (n, n))
 
     x = linspace(0.0, 1.0, modelparams.nx[1])
     y = linspace(0.0, 1.0, modelparams.nx[2])
