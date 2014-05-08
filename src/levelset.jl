@@ -1,13 +1,6 @@
 # Level set code to handle the computation, reinitialization, and evolution of
 # level set functions (φ)
 
-compute_lsfunc(state::ModelState) = compute_lsfunc(state.temp, state.params.dx)
-function compute_lsfunc(temp::Vector, dx::Tuple)
-
-    # find zero crossings
-
-end
-
 function exact_phi(state::ModelState1d)
     zeta = Iceberg.front_indices(state)
     if length(zeta) > 0
@@ -22,7 +15,6 @@ function exact_phi(state::ModelState1d)
     return sdist[:]
 end
 
-# the simplest possible linear search
 function exact_phi(state::ModelState2d)
     error("Not implemented")
 end
@@ -110,7 +102,6 @@ function grad(A::Array, h::Tuple)
     end
     return dx, dy
 end
-
 
 # computes the normal velocity based on temperature gradient
 function front_velocity(state::ModelState1d, phys::PhysicalParams)
