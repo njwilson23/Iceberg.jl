@@ -87,6 +87,32 @@ function test_hill_onephase()
 
 end
 
+function test_iceblock()
+    state, physics = Iceberg.initialize2d_square(64)
+    state.params.dt = 5e-3
+    physics.cps = 2.1
+    physics.cpl = 4.2
+    physics.Lf = 335.0
+
+    tend = 2.0
+    nt = tend / state.params.dt
+
+    for i = 1:nt
+        Iceberg.tsolve!(state, physics)
+        vel = Iceberg.front_velocity(state, physics)
+        state.phi += state.params.dt * vel
+        if i%25 == 0
+            Iceberg.reinitialize!(state, 2)   
+        end
+    end
+
+    # Right now this just verifies that the test runs and provides non-NaN
+    # results. Actual validation of results are TODO
+    @test countnz(isnan(state.phi)) == 0
+    @test countnz(isnan(state.temp)) == 0
+
+end
+
 function test_front_positions()
     println("test_front_positions")
     
