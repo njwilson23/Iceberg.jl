@@ -80,16 +80,19 @@ function reinitialize!(state::ModelState2d, iters::Int; k=0.01, kd=0.005)
     end
 end
 
+# compute |∇φ| for a field φ
 function absgrad(A::Vector, h::Tuple)
     abs(gradient(A, h[1]))
 end
 
+# compute |∇φ| for a field φ
 # needs to be extended to Nd
 function absgrad(A::Array, h::Tuple)
     dx, dy = grad(A, h)
     return sqrt(dx.^2 + dy.^2)
 end
 
+# compute ∇φ for a field φ
 function grad(A::Array, h::Tuple)
     m, n = size(A)
     dx = Array(Float64, (m,n))
@@ -164,8 +167,68 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
     end
 end
 
+# 2d front velocities within a band around the zero level set
+#
+# requires the level set function φ to be reasonably close to the signed
+# distance function in order to accurately determine the bandwidth
+#
+# Works by computing the band gradient in φ and the global gradient in
+# temperature. For each point in the band, computes a potential front velocity
+# based on the local temperature (potentially liquid) and the up-φ-gradient
+# temperature (potentially solid)
+function front_velocity(state::ModelState2d, phys::PhysicalParams)
+
+    # make band global for now
+    idxBand = 1:prod(state.params.nx)
+    #idxBand = find(-2.0 < φ < 2.0)
+
+    dTdx, dTdy = grad(state.T)
+    dφdx, dφdy = grad(state.phi)
+    dTdn = dTdx .* dφdx + dTdy .* dφdy
+
+    κl = physics.kapl
+    κs = physics.kaps
+    stefanvel(Tl_n::Float64, Ts_n::Float64) = (κl*Tl_n + κs*Ts_n) / physics.Lf
+
+    V = zeros(Float64, state.params.nx)
+
+    for i=2:state.params.nx[1]-1
+        for j=2:state.params.nx[2]-1
+            upstrDir = angle([dφdx[i,j], dφdy[i,j]])
+            if upstrDir < 0.25pi || upstrDir >= 1.75pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j+1])
+            elseif 0.25pi <= upstrDir < 0.75pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i-1,j])
+            elseif 0.75pi <= upstrDir < 1.25pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j-1])
+            elseif 1.25pi <= upstrDir < 1.75pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i+1,j])
+            end
+        end
+    end
+    return V
+end
+
+unitvec(vec::Vector) = vec / norm(vec)
+function angle(vec::Vector)
+    if vec[1] > 1e-8
+        if vec[2] >= 0
+            return atan(vec[2] / vec[1])
+        elseif vec[2] < 0
+            return atan(vec[2] / vec[1]) + 2pi
+        end
+    elseif vec[1] < -1e-8
+        return atan(vec[2] / vec[1]) + pi
+    elseif vec[2] > 0
+        return 0.5pi
+    else
+        return pi
+    end
+end
+
 # 2d front velocities using Chen's (1997) approximation where 
 #   cps = cpl = kaps = kapl = 1
+# then advects derivatives in temperature in the normal direction
 function front_velocity_chen(state::ModelState2d, phys::PhysicalParams)
 
     #dtdnLiquid = nan*Array(Float64, state.params.nx)
