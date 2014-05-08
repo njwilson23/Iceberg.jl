@@ -80,21 +80,23 @@ function test_hill_onephase()
     x_analytical = sqrt(2*0.769 * physics.kaps * t / (physics.rhos*physics.cps))
 
     residual = x_analytical - x_numerical
-    @printf("L∞ norm: %1.3f\n", sum(abs(residual)))
-    @printf("L1 norm: %1.3f (required to be less than 0.01)\n",
+    @printf("\tL1 norm: %1.3f\n", sum(abs(residual)))
+    @printf("\tL∞ norm: %1.3f (required to be less than 0.01)\n",
             maximum(abs(residual)))
     @test maximum(abs(residual)) < 0.01
 
 end
 
 function test_iceblock()
+    println("test_iceblock")
+
     state, physics = Iceberg.initialize2d_square(64)
     state.params.dt = 5e-3
     physics.cps = 2.1
     physics.cpl = 4.2
     physics.Lf = 335.0
 
-    tend = 2.0
+    tend = 0.5
     nt = tend / state.params.dt
 
     for i = 1:nt
@@ -134,5 +136,6 @@ test_front_indices()
 test_front_positions()
 test_front_velocity()
 test_hill_onephase()
+test_iceblock()
 
 end #module
