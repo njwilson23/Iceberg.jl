@@ -182,13 +182,13 @@ function front_velocity(state::ModelState2d, phys::PhysicalParams)
     idxBand = 1:prod(state.params.nx)
     #idxBand = find(-2.0 < φ < 2.0)
 
-    dTdx, dTdy = grad(state.T)
-    dφdx, dφdy = grad(state.phi)
+    dTdx, dTdy = grad(state.temp, state.params.dx)
+    dφdx, dφdy = grad(state.phi, state.params.dx)
     dTdn = dTdx .* dφdx + dTdy .* dφdy
 
-    κl = physics.kapl
-    κs = physics.kaps
-    stefanvel(Tl_n::Float64, Ts_n::Float64) = (κl*Tl_n + κs*Ts_n) / physics.Lf
+    κl = phys.kapl
+    κs = phys.kaps
+    stefanvel(Tl_n::Float64, Ts_n::Float64) = (κl*Tl_n + κs*Ts_n) / phys.Lf
 
     V = zeros(Float64, state.params.nx)
 
