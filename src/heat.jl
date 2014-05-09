@@ -145,11 +145,8 @@ end
 # temperature. For each point in the band, computes a potential front velocity
 # based on the local temperature (potentially liquid) and the up-φ-gradient
 # temperature (potentially solid)
+# Todo: use symmetrical differences for better accuracy
 function front_velocity(state::ModelState2d, phys::PhysicalParams)
-
-    # make band global for now
-    idxBand = 1:prod(state.params.nx)
-    #idxBand = find(-2.0 < φ < 2.0)
 
     dTdx, dTdy = grad(state.temp, state.params.dx)
     dφdx, dφdy = grad(state.phi, state.params.dx)
@@ -159,22 +156,31 @@ function front_velocity(state::ModelState2d, phys::PhysicalParams)
     κs = phys.kaps
     stefanvel(Tl_n::Float64, Ts_n::Float64) = (κl*Tl_n + κs*Ts_n) / phys.Lf
 
+    dx = maximum(state.params.dx)
     V = zeros(Float64, state.params.nx)
 
     for i=2:state.params.nx[1]-1
         for j=2:state.params.nx[2]-1
-            upstrDir = angle([dφdx[i,j], dφdy[i,j]])
-            if upstrDir < 0.25pi || upstrDir >= 1.75pi
-                V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j+1])
-            elseif 0.25pi <= upstrDir < 0.75pi
-                V[i,j] = stefanvel(dTdn[i,j], dTdn[i-1,j])
-            elseif 0.75pi <= upstrDir < 1.25pi
-                V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j-1])
-            elseif 1.25pi <= upstrDir < 1.75pi
-                V[i,j] = stefanvel(dTdn[i,j], dTdn[i+1,j])
+            if (-2dx < state.phi < 2dx)
+                upstrDir = angle([dφdx[i,j], dφdy[i,j]])
+                if upstrDir < 0.25pi || upstrDir >= 1.75pi
+                    V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j+1])
+                elseif 0.25pi <= upstrDir < 0.75pi
+                    V[i,j] = stefanvel(dTdn[i,j], dTdn[i-1,j])
+                elseif 0.75pi <= upstrDir < 1.25pi
+                    V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j-1])
+                elseif 1.25pi <= upstrDir < 1.75pi
+                    V[i,j] = stefanvel(dTdn[i,j], dTdn[i+1,j])
+                end
+            else
+                V[i,j] = NaN
             end
         end
     end
+
+    msk = isnan(V)
+    V[msk] = mean(V[~msk])
+
     return V
 end
 
