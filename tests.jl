@@ -161,11 +161,11 @@ function test_hill_onephase_2d(n=32)
         vel = Iceberg.front_velocity(state, physics)
         state.phi += state.params.dt * vel
         
-        ζ = find_interface_index(state.phi[int(floor(n/2)),:][:])
+        ζ = find_interface_index(state.phi[int(floor(n/2)),:][:]) - 2
         x_numerical[i] = state.params.dx[1] * ζ
 
-        if i%5 == 0
-            Iceberg.reinitialize!(state, 5)
+        if i%1 == 0
+            Iceberg.reinitialize!(state, 1)
         end
     end
 
@@ -175,6 +175,7 @@ function test_hill_onephase_2d(n=32)
 
     @printf("\tL1 norm: %1.3f\n", sum(abs(residual)))
     @printf("\tL∞ norm: %1.3f\n", maximum(abs(residual)))
+    @test maximum(abs(residual)) < 0.05
 
 end
 
