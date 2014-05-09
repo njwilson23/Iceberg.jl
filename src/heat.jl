@@ -75,3 +75,172 @@ function tsolve_explicit!(state::ModelState, phys::PhysicalParams)
     return state.temp
 end
 
+# computes the normal velocity based on temperature gradient
+function front_velocity(state::ModelState1d, phys::PhysicalParams)
+
+    # need to look right at the front, and compute the gradient on either side.
+    # This is trivial for 1d, but it would be a good idea to think about how I
+    # can generalize this to ND.
+    ζ = front_indices(state)
+    velocities = Array(Float64, length(ζ))
+    dx = state.params.dx[1]
+
+    for (i, z) in enumerate(ζ)
+
+        if (z > 2) & (z < state.params.nx[1] - 1)
+
+            if state.phi[z-1] > 0.0
+                idxsSolid = [z - 2, z - 1]
+                idxsLiquid = [z + 1, z + 2]
+            else
+                idxsSolid = [z + 1, z + 2]
+                idxsLiquid = [z - 2, z - 1]
+            end
+
+        elseif (z <= 2)
+
+            if state.phi[z] > 0.0
+                idxsSolid = [1, 1]
+                idxsLiquid = [z + 1, z + 2]
+            else
+                idxsSolid = [z + 1, z + 2]
+                idxsLiquid = [1, 1]
+            end
+
+        elseif (z >= state.params.nx[1] - 1)
+
+            n = state.params.nx[1]
+
+            if state.phi[z] > 0.0
+                idxsSolid = [n, n]
+                idxsLiquid = [z - 1, z - 2]
+            else
+                idxsSolid = [z - 1, z - 2]
+                idxsLiquid = [n, n]
+            end
+
+        end
+
+        ∇sol = 1.0/dx * dot(state.temp[idxsSolid], [-1, 1])
+        ∇liq = 1.0/dx * dot(state.temp[idxsLiquid], [-1, 1])
+        velocities[i] = (phys.kaps * ∇sol - phys.kapl * ∇liq) / phys.Lf
+
+    end
+
+    if length(ζ) > 1
+        return interp1d([1:state.params.nx[1]], ζ, velocities)
+    elseif length(ζ) > 0
+        return velocities[1] * ones(Float64, state.params.nx[1])
+    else
+        return zeros(Float64, state.params.nx[1])
+    end
+end
+
+# 2d front velocities within a band around the zero level set
+#
+# requires the level set function φ to be reasonably close to the signed
+# distance function in order to accurately determine the bandwidth
+#
+# Works by computing the band gradient in φ and the global gradient in
+# temperature. For each point in the band, computes a potential front velocity
+# based on the local temperature (potentially liquid) and the up-φ-gradient
+# temperature (potentially solid)
+function front_velocity(state::ModelState2d, phys::PhysicalParams)
+
+    # make band global for now
+    idxBand = 1:prod(state.params.nx)
+    #idxBand = find(-2.0 < φ < 2.0)
+
+    dTdx, dTdy = grad(state.temp, state.params.dx)
+    dφdx, dφdy = grad(state.phi, state.params.dx)
+    dTdn = dTdx .* dφdx + dTdy .* dφdy
+
+    κl = phys.kapl
+    κs = phys.kaps
+    stefanvel(Tl_n::Float64, Ts_n::Float64) = (κl*Tl_n + κs*Ts_n) / phys.Lf
+
+    V = zeros(Float64, state.params.nx)
+
+    for i=2:state.params.nx[1]-1
+        for j=2:state.params.nx[2]-1
+            upstrDir = angle([dφdx[i,j], dφdy[i,j]])
+            if upstrDir < 0.25pi || upstrDir >= 1.75pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j+1])
+            elseif 0.25pi <= upstrDir < 0.75pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i-1,j])
+            elseif 0.75pi <= upstrDir < 1.25pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j-1])
+            elseif 1.25pi <= upstrDir < 1.75pi
+                V[i,j] = stefanvel(dTdn[i,j], dTdn[i+1,j])
+            end
+        end
+    end
+    return V
+end
+
+unitvec(vec::Vector) = vec / norm(vec)
+function angle(vec::Vector)
+    if vec[1] > 1e-8
+        if vec[2] >= 0
+            return atan(vec[2] / vec[1])
+        elseif vec[2] < 0
+            return atan(vec[2] / vec[1]) + 2pi
+        end
+    elseif vec[1] < -1e-8
+        return atan(vec[2] / vec[1]) + pi
+    elseif vec[2] > 0
+        return 0.5pi
+    else
+        return pi
+    end
+end
+
+# 2d front velocities using Chen's (1997) approximation where 
+#   cps = cpl = kaps = kapl = 1
+# then advects derivatives in temperature in the normal direction
+function front_velocity_chen(state::ModelState2d, phys::PhysicalParams)
+
+    #dtdnLiquid = nan*Array(Float64, state.params.nx)
+    #dtdnLiquid = nan*Array(Float64, state.params.nx)
+    #isSolid = state.phi .>= 0.0
+
+    # Normal directions
+    φ = state.phi
+    φx, φy = grad(state.phi, state.params.dx)
+    # Temperature gradient
+    dtdx, dtdy = grad(state.temp, state.params.dx)
+
+    # Extend the derivatives in the normal direction using upwinding
+    # dT/dx
+    d2tdx2 = zeros(Float64, size(dtdx))
+    k = 0.9 * state.params.dx[2]
+    for i = 1:state.params.nx[2]
+        d2tdx2[:,2:end-1] = 0.5 * (dtdx[:,3:end] - dtdx[:,1:end-2])
+        dtdx -= k * sign(φ .* φx) * d2tdx2
+    end
+
+    d2tdy2 = zeros(Float64, size(dtdy))
+    k = 0.9 * state.params.dx[2]
+    for i = 1:state.params.nx[2]
+        d2tdy2[2:end-1,:] = 0.5 * (dtdy[3:end,:] - dtdy[1:end-2,:])
+        dtdy -= k * sign(φ .* φx) * d2tdy2
+    end
+
+    # Temperature gradient normal to level sets
+    dtdn = dtdx*φx + dtdy*φy
+    return dtdx
+
+    #dtdnSolid[isSolid] = dtdn[isSolid]
+    #dtdnLiquid[~isSolid] = dtdn[~isSolid]
+    return -dtdn / phys.Lf
+
+    # Alternative algorithm:
+    #
+    # look a every undefined point in the solid domain.
+    # if there is a neighbouring undefined point, it borders an interface
+    # associate the solid border cells with a downstream (in φ) liquid value
+    # and perform the complimentary operation
+    # compute the velocity of the front where there are paired derivatives
+
+end
+
