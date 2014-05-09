@@ -135,7 +135,7 @@ end
 # Note: until the heat solver can handle Neumann boundary conditions on the
 # upper and lower boundaries, this is expected to propagate slightly faster
 # than the analytical solution.
-function test_hill_onephase_2d(n=32)
+function test_hill_onephase_2d()
     println("test_hill_onephase_2d")
 
     function find_interface_index(φ::Vector)
@@ -147,9 +147,10 @@ function test_hill_onephase_2d(n=32)
         end
     end
 
+    n = 32
     state, physics = Iceberg.initialize2d_frontv(n)
-    state.params.dt = 1e-4
-    state.params.dx = (1.0/n, 0.5/n)
+    state.params.dt = 1e-3
+    state.params.dx = (1.0/n, 1.0/n)
 
 
     tend = 0.5
@@ -164,9 +165,7 @@ function test_hill_onephase_2d(n=32)
         ζ = find_interface_index(state.phi[int(floor(n/2)),:][:]) - 2
         x_numerical[i] = state.params.dx[1] * ζ
 
-        if i%1 == 0
-            Iceberg.reinitialize!(state, 1)
-        end
+        Iceberg.reinitialize!(state, 2)
     end
 
     t = state.params.dt * [1:nt]
