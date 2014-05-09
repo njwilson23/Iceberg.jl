@@ -71,7 +71,7 @@ function test_hill_onephase()
         Iceberg.tsolve!(state, physics)
         vel = Iceberg.front_velocity(state, physics)
         state.phi += state.params.dt * vel
-        
+
         zeta = Iceberg.front_indices(state)[1]
         push!(x_numerical, zeta[1] * state.params.dx[1])
     end
@@ -104,7 +104,7 @@ function test_iceblock()
         vel = Iceberg.front_velocity(state, physics)
         state.phi += state.params.dt * vel
         if i%25 == 0
-            Iceberg.reinitialize!(state, 2)   
+            Iceberg.reinitialize!(state, 2)
         end
     end
 
@@ -117,7 +117,7 @@ end
 
 function test_front_positions()
     println("test_front_positions")
-    
+
     n = 256
     x = linspace(0, 2pi, n)
     dx = 2pi/n
@@ -149,12 +149,17 @@ function test_hill_onephase_2d()
 
     function find_interface_position(φ::Vector)
         ζ = find_interface_index(φ)
-        return ζ + φ[ζ-1] / (φ[ζ-1] + φ[ζ+1]) - 1
+        if φ[ζ] > 0
+            ξ = ζ - φ[ζ] / (φ[ζ] - φ[ζ-1])
+        elseif φ[ζ] <= 0
+            ξ = ζ - φ[ζ] / (φ[ζ+1] - φ[ζ])
+        end
+        return ξ
     end
 
     n = 32
     state, physics = Iceberg.initialize2d_frontv(n)
-    Iceberg.reinitialize!(state, 50)
+    Iceberg.reinitialize!(state, 100)
     state.params.dt = 1e-3
 
     tend = 0.5
@@ -165,12 +170,13 @@ function test_hill_onephase_2d()
         Iceberg.tsolve!(state, physics)
         vel = Iceberg.front_velocity(state, physics)
         state.phi += state.params.dt * vel
-        
+
         # subtract 1 because interface starts at 2
         ζ = find_interface_position(state.phi[int(floor(n/2)),:][:]) - 1
         x_numerical[i] = state.params.dx[1] * ζ
 
         Iceberg.reinitialize!(state, 2)
+
     end
 
     t = state.params.dt * [1:nt]
