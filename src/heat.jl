@@ -161,7 +161,7 @@ function front_velocity(state::ModelState2d, phys::PhysicalParams)
 
     for i=2:state.params.nx[1]-1
         for j=2:state.params.nx[2]-1
-            if (-2dx < state.phi < 2dx)
+            if (-2dx < state.phi[i,j] < 2dx)
                 upstrDir = angle([dφdx[i,j], dφdy[i,j]])
                 if upstrDir < 0.25pi || upstrDir >= 1.75pi
                     V[i,j] = stefanvel(dTdn[i,j], dTdn[i,j+1])
@@ -178,8 +178,15 @@ function front_velocity(state::ModelState2d, phys::PhysicalParams)
         end
     end
 
-    msk = isnan(V)
-    V[msk] = mean(V[~msk])
+    Vinterior = V[2:end-1,2:end-1]
+    meanval = mean(Vinterior[!isnan(Vinterior)])
+    for i=2:state.params.nx[1]-1
+        for j=2:state.params.nx[2]-1
+            if isnan(V[i,j])
+                V[i,j] = meanval
+            end
+        end
+    end
 
     return V
 end
