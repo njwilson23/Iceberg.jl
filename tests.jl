@@ -130,12 +130,62 @@ function test_front_positions()
 
 end
 
+# solve the Hill front propagation problem in two dimensions
+
+# Note: until the heat solver can handle Neumann boundary conditions on the
+# upper and lower boundaries, this is expected to propagate slightly faster
+# than the analytical solution.
+function test_hill_onephase_2d(n=32)
+    println("test_hill_onephase_2d")
+
+    function find_interface_index(φ::Vector)
+        index = find(abs(φ) .== minimum(abs(φ)))
+        if length(index) > 0
+            return index[1]
+        else
+            return NaN
+        end
+    end
+
+    state, physics = Iceberg.initialize2d_frontv(n)
+    state.params.dt = 1e-4
+    state.params.dx = (1.0/n, 0.5/n)
+
+
+    tend = 0.5
+    nt = int(floor(tend / state.params.dt))
+    x_numerical = zeros(Float64, nt)
+
+    for i=1:nt
+        Iceberg.tsolve!(state, physics)
+        vel = Iceberg.front_velocity(state, physics)
+        state.phi += state.params.dt * vel
+        
+        ζ = find_interface_index(state.phi[int(floor(n/2)),:][:])
+        x_numerical[i] = state.params.dx[1] * ζ
+
+        if i%5 == 0
+            Iceberg.reinitialize!(state, 5)
+        end
+    end
+
+    t = state.params.dt * [1:nt]
+    x_analytical = sqrt(2*0.769 * physics.kaps * t / (physics.rhos*physics.cps))
+    residual = x_numerical - x_analytical
+
+    @printf("\tL1 norm: %1.3f\n", sum(abs(residual)))
+    @printf("\tL∞ norm: %1.3f\n", maximum(abs(residual)))
+
+end
+
 test_initialize1d()
 test_interp1d()
 test_front_indices()
 test_front_positions()
 test_front_velocity()
+
 test_hill_onephase()
+test_hill_onephase_2d()
 test_iceblock()
 
 end #module
