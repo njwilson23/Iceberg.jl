@@ -154,9 +154,8 @@ function test_hill_onephase_2d()
 
     n = 32
     state, physics = Iceberg.initialize2d_frontv(n)
+    Iceberg.reinitialize!(state, 50)
     state.params.dt = 1e-3
-    state.params.dx = (1.0/n, 1.0/n)
-
 
     tend = 0.5
     nt = int(floor(tend / state.params.dt))
@@ -167,6 +166,7 @@ function test_hill_onephase_2d()
         vel = Iceberg.front_velocity(state, physics)
         state.phi += state.params.dt * vel
         
+        # subtract 1 because interface starts at 2
         ζ = find_interface_position(state.phi[int(floor(n/2)),:][:]) - 1
         x_numerical[i] = state.params.dx[1] * ζ
 
