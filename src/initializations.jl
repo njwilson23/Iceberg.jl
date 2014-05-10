@@ -123,3 +123,21 @@ function initialize2d_square(n=32)
                                          u1' .* ones(n), u2' .* ones(n))
     return state, physics
 end
+
+function initialize2d_blockdemo(n=48)
+
+    physics = PhysicalParams(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
+    modelparams = ModelParams(1e-3, (1.0/(n-1), 1.0/(n-1)), (n, n))
+
+    n3 = int(floor(n/3))
+    n4 = int(floor(n/4))
+    T = ones(Float64, (n, n))
+    T[n4:2n4, 2n4:3n4] = -1.0
+    T[n3:2n3, n3:2n3] = -1.0
+
+    state = ModelState2d(T, -copy(T), modelparams)
+    phi = exact_phi(state)
+    state.phi = phi
+
+    return state, physics
+end
