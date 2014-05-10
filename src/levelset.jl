@@ -15,8 +15,64 @@ function exact_phi(state::ModelState1d)
     return sdist[:]
 end
 
+# quick and dirty inefficient scheme to calculate the exact signed distance function
+# warning: assume melting temperature Tm=0
 function exact_phi(state::ModelState2d)
-    error("Not implemented")
+
+    # find the boundary
+    B = false .* Array(Bool, state.params.nx)
+    T = state.temp
+    i = 2
+    while i != state.params.nx[1]
+        j = 2
+        while j != state.params.nx[2]
+            s = sign(state.temp[i,j])
+            for tn in (T[i-1,j], T[i+1,j], T[i,j-1], T[i,j+1])
+                if sign(tn) != s
+                    B[i,j] = true
+                    break
+                end
+            end
+            j += 1
+        end
+        i += 1
+    end
+
+    # for each point, find the distance to the nearest boundary cell
+    D = Array(Float64, state.params.nx)
+    i = 1
+    while i != state.params.nx[1] + 1
+        j = 1
+        while j != state.params.nx[2] + 1
+
+            ii = 2
+            dlist = Float64[]
+            while ii != state.params.nx[1]
+                jj = 2
+                while jj != state.params.nx[2]
+
+                    if B[ii,jj]
+                        push!(dlist, sqrt((state.params.dx[1] * (ii-i))^2
+                                        + (state.params.dx[2] * (jj-j))^2))
+                    end
+
+                    jj += 1
+                end
+                ii += 1
+            end
+
+            if length(dlist) != 0
+                D[i,j] = -minimum(dlist) * sign(state.temp[i,j])
+            else
+                D[i,j] = NaN
+            end
+
+            j += 1
+        end
+        i += 1
+    end
+
+    return D
 end
 
 # reinitialize following the simple relaxation scheme of Rouy and Tourin
