@@ -121,9 +121,9 @@ function front_velocity(state::ModelState1d, phys::PhysicalParams)
 
         end
 
-        ∇sol = 1.0/dx * dot(state.temp[idxsSolid], [-1, 1])
-        ∇liq = 1.0/dx * dot(state.temp[idxsLiquid], [-1, 1])
-        velocities[i] = (phys.kaps * ∇sol - phys.kapl * ∇liq) / phys.Lf
+        NBsol = 1.0/dx * dot(state.temp[idxsSolid], [-1, 1])
+        NBliq = 1.0/dx * dot(state.temp[idxsLiquid], [-1, 1])
+        velocities[i] = (phys.kaps * NBsol - phys.kapl * NBliq) / phys.Lf
 
     end
 
@@ -213,10 +213,6 @@ end
 # then advects derivatives in temperature in the normal direction
 function front_velocity_chen(state::ModelState2d, phys::PhysicalParams)
 
-    #dtdnLiquid = nan*Array(Float64, state.params.nx)
-    #dtdnLiquid = nan*Array(Float64, state.params.nx)
-    #isSolid = state.phi .>= 0.0
-
     # Normal directions
     φ = state.phi
     φx, φy = grad(state.phi, state.params.dx)
@@ -243,17 +239,7 @@ function front_velocity_chen(state::ModelState2d, phys::PhysicalParams)
     dtdn = dtdx*φx + dtdy*φy
     return dtdx
 
-    #dtdnSolid[isSolid] = dtdn[isSolid]
-    #dtdnLiquid[~isSolid] = dtdn[~isSolid]
     return -dtdn / phys.Lf
-
-    # Alternative algorithm:
-    #
-    # look a every undefined point in the solid domain.
-    # if there is a neighbouring undefined point, it borders an interface
-    # associate the solid border cells with a downstream (in φ) liquid value
-    # and perform the complimentary operation
-    # compute the velocity of the front where there are paired derivatives
 
 end
 
